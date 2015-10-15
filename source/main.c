@@ -19,7 +19,7 @@
 #include <string.h>
 #include <stdint.h>
 
-#define DEBUG
+#include "filesystem.h"
 
 //Megaspeedups/stock lives
 //00000000   0000101    000     1100011    0010000
@@ -45,32 +45,42 @@
 #define CJ_ADD 0x68
 #define LM_ADD 0x2D4A
 
+u64 size;
+u8* buffer = NULL;
+
 int exitnow = 0;
 
 void myexit_error(char* msg){
 	printf("\x1b[0;0H");
 	printf("%s", msg);
-	printf("\n Press X to exit");
+	printf("\n Press START to exit");
 	while(1){
 		hidScanInput();
 		u32 kDown = hidKeysDown();
-		if (kDown & KEY_X) break;
+		if (kDown & KEY_START) break;
 	}
 	gfxExit();
 	exitnow = 1;
 	return ;
 }
 
+int myexit_exit(){
+	// Exit services
+	if (buffer != NULL) free(buffer);
+	filesystemExit();
+	gfxExit();
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
-
-int jewels = 0;
-int coins = 0;
-int megas = 0;
-int lives = 0;
+	int jewels = 0;
+	int coins = 0;
+	int megas = 0;
+	int lives = 0;
 
 	//Matrix containing the name of each key. Useful for printing when a key is pressed
-	char keysNames[32][32] = {
+/*	char keysNames[32][32] = {
 		"KEY_A", "KEY_B", "KEY_SELECT", "KEY_START",
 		"KEY_DRIGHT", "KEY_DLEFT", "KEY_DUP", "KEY_DDOWN",
 		"KEY_R", "KEY_L", "KEY_X", "KEY_Y",
@@ -80,54 +90,35 @@ int lives = 0;
 		"KEY_CSTICK_RIGHT", "KEY_CSTICK_LEFT", "KEY_CSTICK_UP", "KEY_CSTICK_DOWN",
 		"KEY_CPAD_RIGHT", "KEY_CPAD_LEFT", "KEY_CPAD_UP", "KEY_CPAD_DOWN"
 	};
-
+*/
 	// Initialize services
+	filesystemInit();
 	gfxInitDefault();
 
 	//Initialize console on top screen. Using NULL as the second argument tells the console library to use the internal console structure as current one
 	consoleInit(GFX_TOP, NULL);
 
-	u32 kDownOld = 0, kHeldOld = 0, kUpOld = 0; //In these variables there will be information about keys detected in the previous frame
+	//u32 kDownOld = 0, kHeldOld = 0, kUpOld = 0; //In these variables there will be information about keys detected in the previous frame
 
 	//printf("\x1b[0;0HPress Start to exit.");
 	//printf("\x1b[1;0HCirclePad position:");
 	int currpos = 0;
 
-    FILE * pFile;
-    long lSize;
-    char * buffer;
-    size_t result;
-
-#ifdef DEBUG
-	pFile = fopen ( "savedata.bin" , "rb" );
-#else
-    pFile = fopen ( "sdmc:/savedataBackup/savedata.bin" , "rb" );
-#endif
-    if (pFile==NULL) {
-		myexit_error ("Error opening savedata.bin");
-		fclose (pFile);
-		if (exitnow) return 0;
+	// Load savegame
+	//Try to open savefile
+	Result res = getSaveGameFileSize("/savedata.bin",&size);
+	if (res != 0 ){
+		myexit_error("Can't open savedata.bin\n");
+		if (exitnow) myexit_exit();
+	} else{
+		buffer = (u8*)malloc(size);
+		res = readBytesFromSaveFile("/savedata.bin",0,buffer,size);
+		if (res != 0 ){
+		myexit_error("Failed to read savedata.bin\n\n");
+		if (exitnow) myexit_exit();
+		}
 	}
-	// obtain file size:
-	fseek (pFile , 0 , SEEK_END);
-	lSize = ftell (pFile);
-	rewind (pFile);
-	// allocate memory to contain the whole file:
-	buffer = (char*) malloc (sizeof(char)*lSize);
-	if (buffer == NULL) {
-		myexit_error ("Memory error");
-		fclose (pFile);
-		if (exitnow) return 0;
-	}
-	// copy the file into the buffer:
-	result = fread (buffer,1,lSize,pFile);
-	if (result != lSize) {
-		myexit_error ("Reading error");
-		fclose (pFile);
-		if (exitnow) return 0;
-	}
-	/* the whole file is now loaded in the memory buffer. */
-    fclose (pFile);
+	//Save is loaded in buffer
 
 //Read values from file
 	u32 lvMsbuff;
@@ -197,7 +188,7 @@ int lives = 0;
 		//hidKeysHeld returns information about which buttons have are held down in this frame
 		u32 kHeld = hidKeysHeld();
 		//hidKeysUp returns information about which buttons have been just released
-		u32 kUp = hidKeysUp();
+		//u32 kUp = hidKeysUp();
 
 		if (kDown & KEY_START){
 			if (buffer != NULL) free(buffer);
@@ -239,26 +230,13 @@ int lives = 0;
 				memcpy(buffer+LM_ADD, &lvMsbuff, 4);
 				memcpy(buffer+CJ_ADD, &coinjewbuff, 4);
 
-			//Write file
-#ifdef DEBUG
-				pFile = fopen ("savedata-edit.bin", "wb");
-#else
-				pFile = fopen ("sdmc:/savedataBackup/savedata.bin", "wb");
-#endif			
-				if(pFile == NULL){
-					myexit_error("Can't open savedata.bin");
-					if (buffer != NULL) free(buffer);
-					fclose (pFile);
-					if (exitnow) return 0;
+			// Write Save savegame
+				res = writeBytesToSaveFile("/savedata.bin", 0, buffer, size);
+				if (res != 0 ){
+					myexit_error("Failed to write savedata.bin\n\n");
+					if (exitnow) myexit_exit();
 				}
-				int ret = fwrite (buffer , sizeof(char), lSize, pFile);
-				if(ret != lSize){
-					myexit_error("Error writing savedata.bin");
-					if (buffer != NULL) free(buffer);
-					fclose (pFile);
-					if (exitnow) return 0;
-				}
-				fclose (pFile);
+			//Free buffer
 				if (buffer != NULL) free(buffer);
 				break;
 		}
@@ -270,7 +248,7 @@ int lives = 0;
 			//consoleClear();
 
 			//These two lines must be rewritten because we cleared the whole console
-			printf("\x1b[0;0HPokemon Shuffle Editor 0.1 by suloku");
+			printf("\x1b[0;0HPokemon Shuffle Editor 0.2 by suloku");
 			printf("\x1b[2;0HCurrent values:");
 
 			printf("\x1b[4;5HJewels: %3d", jewels);
@@ -411,11 +389,11 @@ int lives = 0;
 			*/
 		}
 
-		//Set keys old values for the next frame
-		kDownOld = kDown;
+		//Set keys old values for the next framezy
+/*		kDownOld = kDown;
 		kHeldOld = kHeld;
 		kUpOld = kUp;
-
+*/
 		circlePosition pos;
 
 		//Read the CirclePad position
@@ -432,7 +410,7 @@ int lives = 0;
 		gspWaitForVBlank();
 	}
 
-	// Exit services
-	gfxExit();
+	//Clean up and exit
+	myexit_exit();
 	return 0;
 }
