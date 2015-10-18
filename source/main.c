@@ -64,12 +64,12 @@ void myexit_error(char* msg){
 	return ;
 }
 
-int myexit_exit(){
+void myexit_exit(){
 	// Exit services
 	if (buffer != NULL) free(buffer);
 	filesystemExit();
 	gfxExit();
-	return 0;
+	return;
 }
 
 int main(int argc, char **argv)
@@ -109,13 +109,13 @@ int main(int argc, char **argv)
 	Result res = getSaveGameFileSize("/savedata.bin",&size);
 	if (res != 0 ){
 		myexit_error("Can't open savedata.bin\n");
-		if (exitnow) myexit_exit();
+		if (exitnow){ myexit_exit(); return 0;}
 	} else{
 		buffer = (u8*)malloc(size);
 		res = readBytesFromSaveFile("/savedata.bin",0,buffer,size);
 		if (res != 0 ){
 		myexit_error("Failed to read savedata.bin\n\n");
-		if (exitnow) myexit_exit();
+		if (exitnow){ myexit_exit(); return 0;}
 		}
 	}
 	//Save is loaded in buffer
@@ -151,7 +151,7 @@ int main(int argc, char **argv)
 
 
 			//These two lines must be rewritten because we cleared the whole console
-			printf("\x1b[0;0HPokemon Shuffle Editor 0.1 by suloku");
+			printf("\x1b[0;0HPokemon Shuffle Editor 0.2 by suloku");
 			printf("\x1b[2;0HCurrent values:");
 
 			printf("\x1b[4;5HJewels: %3d", jewels);
@@ -174,8 +174,8 @@ int main(int argc, char **argv)
 			printf("\n\tY: max coins");
 			printf("\n\tB: max mega speed ups");
 			printf("\n\tA: max stocked lives");
-			printf("\n\n\nPress Select to save and exit.");
-			printf("\nPress Start to exit.");
+			printf("\n\n\nPress START to exit.");
+			printf("\nPress SELECT to save and exit.");
 
 	// Main loop
 	while (aptMainLoop())
@@ -191,7 +191,6 @@ int main(int argc, char **argv)
 		//u32 kUp = hidKeysUp();
 
 		if (kDown & KEY_START){
-			if (buffer != NULL) free(buffer);
 			break; // break in order to return to hbmenu
 		}
 		if (kDown & KEY_SELECT){
@@ -234,10 +233,8 @@ int main(int argc, char **argv)
 				res = writeBytesToSaveFile("/savedata.bin", 0, buffer, size);
 				if (res != 0 ){
 					myexit_error("Failed to write savedata.bin\n\n");
-					if (exitnow) myexit_exit();
+					if (exitnow) break;
 				}
-			//Free buffer
-				if (buffer != NULL) free(buffer);
 				break;
 		}
 
@@ -271,8 +268,8 @@ int main(int argc, char **argv)
 			printf("\n\tY: max coins");
 			printf("\n\tB: max mega speed ups");
 			printf("\n\tA: max stocked lives");
-			printf("\n\n\nPress Select to save and exit.");
-			printf("\nPress Start to exit.");
+			printf("\n\n\nPress START to exit.");
+			printf("\nPress SELECT to save and exit.");
 			
 			if (kDown & KEY_DRIGHT && kHeld & KEY_R){
 				switch(currpos){
