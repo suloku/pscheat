@@ -92,7 +92,11 @@ int main(int argc, char **argv)
 	};
 */
 	// Initialize services
-	filesystemInit();
+//#ifdef __cia
+	filesystemInit(0x0004000000141000, 1);
+//#else
+//	filesystemInit();
+//#endif
 	gfxInitDefault();
 
 	//Initialize console on top screen. Using NULL as the second argument tells the console library to use the internal console structure as current one
