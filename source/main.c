@@ -42,8 +42,31 @@
 #define COININDEX_LO 3
 #define COININDEX_HI 31-12
 
-#define CJ_ADD 0x68
-#define LM_ADD 0x2D4A
+#define ITEMMASK 0x1
+
+#define CJ_ADD 		0x68 //Coin/jewel address
+#define LM_ADD 		0x2D4A //Mega speedup/lives address
+#define ITEM_ADD 	0x2D4D
+/*
+2D4D: Raise Max Level
+2D4E: Level Up
+2D4F: Exp. Booster S
+2D50: Exp. Booster M
+2D51: Exp. Booster L
+2D52: Skill Booster S
+2D53: Skill Booster M
+2D54: Skill Booster L
+2D55: Unknown Enhancement
+*/
+#define BAT_ADD		0xd0
+/*
++5moves
++time
++exp
+complexity
+DD
+attackup
+*/
 
 u64 size;
 u8* buffer = NULL;
@@ -78,6 +101,9 @@ int main(int argc, char **argv)
 	int coins = 0;
 	int megas = 0;
 	int lives = 0;
+	u8 lvlraise = 0;
+	u8 battle[7];
+	u8 items[8];
 
 	//Matrix containing the name of each key. Useful for printing when a key is pressed
 /*	char keysNames[32][32] = {
@@ -102,11 +128,16 @@ int main(int argc, char **argv)
 	//Initialize console on top screen. Using NULL as the second argument tells the console library to use the internal console structure as current one
 	consoleInit(GFX_TOP, NULL);
 
+
+	printf("\x1b[0;0HPokemon Shuffle Editor 0.3 by suloku");
+
 	//u32 kDownOld = 0, kHeldOld = 0, kUpOld = 0; //In these variables there will be information about keys detected in the previous frame
 
 	//printf("\x1b[0;0HPress Start to exit.");
 	//printf("\x1b[1;0HCirclePad position:");
 	int currpos = 0;
+	
+	int menu = 0; //Menu 0= normal // 1 = battle items // 2= extra items
 
 	// Load savegame
 	//Try to open savefile
@@ -152,34 +183,25 @@ int main(int argc, char **argv)
     //printf("Coins and jewels value: %#.8X\n", (unsigned int)coinjewbuff);
     //printf("Original jewels %d\n", jewels);
     //printf("Original coins %d\n", coins);
-
-
-			//These two lines must be rewritten because we cleared the whole console
-			printf("\x1b[0;0HPokemon Shuffle Editor 0.2 by suloku");
-			printf("\x1b[2;0HCurrent values:");
-
-			printf("\x1b[4;5HJewels: %3d", jewels);
-			printf("\x1b[5;5HCoins: %5d", coins);
-			printf("\x1b[6;5HMegaSpeedups: %2d", megas);
-			printf("\x1b[7;5HStocked lives: %2d", lives);
-			
-			if (currpos == 0){printf("\x1b[4;0H-->\x1b[5;0H   \x1b[6;0H   \x1b[7;0H   ");}
-			if (currpos == 1){ printf("\x1b[5;0H-->\x1b[4;0H   \x1b[6;0H   \x1b[7;0H   ");}
-			if (currpos == 2){ printf("\x1b[6;0H-->\x1b[4;0H   \x1b[5;0H   \x1b[7;0H   ");}
-			if (currpos == 3){ printf("\x1b[7;0H-->\x1b[4;0H   \x1b[5;0H   \x1b[6;0H   ");}
-			
-			printf("\x1b[10;0H");
-			printf("Controls:\n");
-			printf("\tDpad Up/Down: select value\n");
-			printf("\tDpad Right/Left: value inc/dec (except coins)\n");
-			printf("\tHold R trigger + Dpad Right/Left: value +/- 1\n");
-			printf("\tHold L trigger + Dpad Right/Left:\n\t\tvalue +/- 10000 (coins only)\n");
-			printf("\n\n\tX: max jewels");
-			printf("\n\tY: max coins");
-			printf("\n\tB: max mega speed ups");
-			printf("\n\tA: max stocked lives");
-			printf("\n\n\nPress START to exit.");
-			printf("\nPress SELECT to save and exit.");
+	
+	//Battle items
+	int i = 0;
+	u16 temp;
+	for (i=0;i<7;i++)
+	{
+		memcpy(&temp, buffer+BAT_ADD+i, 2);
+		battle[i] = ((temp >> 7) & 0x7F);
+	}
+	
+	//Other items
+	
+	memcpy(&lvlraise, buffer+ITEM_ADD, 1);
+	lvlraise = lvlraise>>1;
+	for (i=0;i<8;i++)
+	{
+		memcpy(items+i, buffer+ITEM_ADD+1+i, 1);
+		items[i]=items[i]>>1;
+	}
 
 	// Main loop
 	while (aptMainLoop())
@@ -193,6 +215,13 @@ int main(int argc, char **argv)
 		u32 kHeld = hidKeysHeld();
 		//hidKeysUp returns information about which buttons have been just released
 		//u32 kUp = hidKeysUp();
+
+		if (kDown & KEY_X){
+			menu ++;
+			if (menu > 2) menu = 0;
+			currpos = 0;
+			consoleClear();
+		}
 
 		if (kDown & KEY_START){
 			break; // break in order to return to hbmenu
@@ -232,6 +261,33 @@ int main(int argc, char **argv)
 			//Add back to buffer
 				memcpy(buffer+LM_ADD, &lvMsbuff, 4);
 				memcpy(buffer+CJ_ADD, &coinjewbuff, 4);
+				
+			//Items
+			
+			//Lvl raise
+				memcpy(&temp, buffer+ITEM_ADD, 1);
+				temp = temp & ITEMMASK; //get the last bit stat
+				lvlraise = lvlraise<<1; //shift
+				temp = lvlraise|temp; //Merge values
+				memcpy(buffer+ITEM_ADD, &temp, 1);//Add to buffer
+			//Battle items
+				for(i=0;i<7;i++)
+				{
+					u16 temp = 0;
+					memcpy(&temp, buffer+BAT_ADD+i, 2);
+					temp &= 0x7F;
+					temp |= battle[i] << 7;
+					memcpy(buffer+BAT_ADD+i, &temp, 2);//Add to buffer
+				}
+			//Other items
+				for(i=0;i<8;i++)
+				{
+					memcpy(&temp, buffer+ITEM_ADD+1+i, 1);
+					temp = temp & ITEMMASK; //get the last bit stat
+					items[i] = items[i]<<1; //shift
+					temp = items[i]|temp; //Merge values
+					memcpy(buffer+ITEM_ADD+1+i, &temp, 1);//Add to buffer
+				}
 
 			// Write Save savegame
 				res = writeBytesToSaveFile("/savedata.bin", 0, buffer, size);
@@ -247,132 +303,271 @@ int main(int argc, char **argv)
 		{
 			//Clear console
 			//consoleClear();
+			printf("\x1b[0;0HPokemon Shuffle Editor 0.3 by suloku");
 
-			//These two lines must be rewritten because we cleared the whole console
-			printf("\x1b[0;0HPokemon Shuffle Editor 0.2 by suloku");
-			printf("\x1b[2;0HCurrent values:");
+			if (!menu)
+			{
+				printf("\x1b[2;0HGeneral Items:");
 
-			printf("\x1b[4;5HJewels: %3d", jewels);
-			printf("\x1b[5;5HCoins: %5d", coins);
-			printf("\x1b[6;5HMegaSpeedups: %2d", megas);
-			printf("\x1b[7;5HStocked lives: %2d", lives);
+				printf("\x1b[4;5HStocked lives:    %2d", lives);
+				printf("\x1b[5;5HCoins:         %5d", coins);
+				printf("\x1b[6;5HMegaSpeedups:     %2d", megas);
+				printf("\x1b[7;5HMax 1 level:      %2d", lvlraise);
+				printf("\x1b[8;5HJewels:          %3d", jewels);				
+
+			}else if (menu == 1)
+			{
+				printf("\x1b[2;0HBattle Items:");
+
+				printf("\x1b[4;5HMoves +5:         %2d", battle[0]);
+				printf("\x1b[5;5HTime +10:         %2d", battle[1]);
+				printf("\x1b[6;5HExp Plus:         %2d", battle[2]);
+				printf("\x1b[7;5HMega Start:       %2d", battle[3]);
+				printf("\x1b[8;5HComplexity -1:    %2d", battle[4]);
+				printf("\x1b[9;5HDisruption Delay: %2d", battle[5]);
+				printf("\x1b[10;5HAttack Up:        %2d", battle[6]);
+
+			}else if (menu == 2)
+			{
+				printf("\x1b[2;0HUpgrade Items:");
+
+				printf("\x1b[4;5HLevel up:         %2d", items[0]);
+				printf("\x1b[5;5HExp. Booster S:   %2d", items[1]);
+				printf("\x1b[6;5HExp. Booster M:   %2d", items[2]);
+				printf("\x1b[7;5HExp. Booster L:   %2d", items[3]);
+				printf("\x1b[8;5HSkill Booster S:  %2d", items[4]);
+				printf("\x1b[9;5HSkill Booster M:  %2d", items[5]);
+				printf("\x1b[10;5HSkill Booster L:  %2d", items[6]);
+				printf("\x1b[11;5HUnknown:          %2d", items[7]);
+			}
 			
-			if (currpos == 0){printf("\x1b[4;0H-->\x1b[5;0H   \x1b[6;0H   \x1b[7;0H   ");}
-			if (currpos == 1){ printf("\x1b[5;0H-->\x1b[4;0H   \x1b[6;0H   \x1b[7;0H   ");}
-			if (currpos == 2){ printf("\x1b[6;0H-->\x1b[4;0H   \x1b[5;0H   \x1b[7;0H   ");}
-			if (currpos == 3){ printf("\x1b[7;0H-->\x1b[4;0H   \x1b[5;0H   \x1b[6;0H   ");}
+				if (currpos == 0){printf("\x1b[4;0H-->\x1b[5;0H   \x1b[6;0H   \x1b[7;0H   \x1b[8;0H   \x1b[9;0H   \x1b[10;0H   \x1b[11;0H   ");}
+				if (currpos == 1){ printf("\x1b[5;0H-->\x1b[4;0H   \x1b[6;0H   \x1b[7;0H   \x1b[8;0H   \x1b[9;0H   \x1b[10;0H   \x1b[11;0H   ");}
+				if (currpos == 2){ printf("\x1b[6;0H-->\x1b[4;0H   \x1b[5;0H   \x1b[7;0H   \x1b[8;0H   \x1b[9;0H   \x1b[10;0H   \x1b[11;0H   ");}
+				if (currpos == 3){ printf("\x1b[7;0H-->\x1b[4;0H   \x1b[5;0H   \x1b[6;0H   \x1b[8;0H   \x1b[9;0H   \x1b[10;0H   \x1b[11;0H   ");}
+				if (currpos == 4){ printf("\x1b[8;0H-->\x1b[4;0H   \x1b[5;0H   \x1b[6;0H   \x1b[7;0H   \x1b[9;0H   \x1b[10;0H   \x1b[11;0H   ");}
+				if (currpos == 5){ printf("\x1b[9;0H-->\x1b[4;0H   \x1b[5;0H   \x1b[6;0H   \x1b[7;0H   \x1b[8;0H   \x1b[10;0H   \x1b[11;0H   ");}
+				if (currpos == 6){ printf("\x1b[10;0H-->\x1b[4;0H   \x1b[5;0H   \x1b[6;0H   \x1b[7;0H   \x1b[8;0H   \x1b[9;0H   \x1b[11;0H   ");}
+				if (currpos == 7){ printf("\x1b[11;0H-->\x1b[4;0H   \x1b[5;0H   \x1b[6;0H   \x1b[7;0H   \x1b[8;0H   \x1b[9;0H   \x1b[10;0H   ");}
 			
-			printf("\x1b[10;0H");
+			printf("\x1b[13;0H");
 			printf("Controls:\n");
 			printf("\tDpad Up/Down: select value\n");
-			printf("\tDpad Right/Left: value inc/dec (except coins)\n");
+			printf("\tDpad Right/Left: value inc/dec\n");
 			printf("\tHold R trigger + Dpad Right/Left: value +/- 1\n");
 			printf("\tHold L trigger + Dpad Right/Left:\n\t\tvalue +/- 1000 (coins only)\n");
-			printf("\n\n\tX: max jewels");
-			printf("\n\tY: max coins");
-			printf("\n\tB: max mega speed ups");
-			printf("\n\tA: max stocked lives");
+			switch(menu)
+			{
+				case 0:
+					printf("\n\n\tX: change to battle items menu");
+					break;
+				case 1:
+					printf("\n\n\tX: change to upgrade items menu");
+					break;
+				case 2:
+					printf("\n\n\tX: change to general items menu");
+					break;
+			}
+
+			printf("\n\tY: set selected to MAX");
+			//printf("\n\tB: max mega speed ups");
+			//printf("\n\tA: max stocked lives");
 			printf("\n\n\nPress START to exit.");
 			printf("\nPress SELECT to save and exit.");
 			
-			if (kDown & KEY_DRIGHT && kHeld & KEY_R){
-				switch(currpos){
-					case 0  :
-					   jewels++;
-					   if (jewels > 150) jewels = 150;
-					   break; /* optional */
-					case 1 :
-					   coins ++;
-					   if (coins > 99999) coins = 99999;
-					   break; /* optional */
-					case 2 :
-					   megas++;
-					   if (megas > 99) megas = 99;
-					   break; /* optional */
-					case 3 :
-					   lives++;
-					   if (lives > 99) lives = 99;
-					   break; /* optional */
+			if (!menu) //General items
+			{
+				if (kDown & KEY_DRIGHT && kHeld & KEY_R){
+					switch(currpos){
+						case 4  :
+						   jewels++;
+						   if (jewels > 150) jewels = 150;
+						   break; /* optional */
+						case 1 :
+						   coins ++;
+						   if (coins > 99999) coins = 99999;
+						   break; /* optional */
+						case 2 :
+						   megas++;
+						   if (megas > 99) megas = 99;
+						   break; /* optional */
+						case 3 :
+						   lvlraise++;
+						   if (lvlraise > 99) lvlraise = 99;
+						   break; /* optional */
+						case 0 :
+						   lives++;
+						   if (lives > 99) lives = 99;
+						   break; /* optional */
+					}
+				}else if (kDown & KEY_DLEFT && kHeld & KEY_R){
+					switch(currpos){
+						case 4  :
+						   jewels--;
+						   if (jewels < 0) jewels = 0;
+						   break; /* optional */
+						case 1 :
+						   coins --;
+						   if (coins < 0 ) coins = 0;
+						   break; /* optional */
+						case 2 :
+						   megas--;
+						   if (megas < 0) megas = 0;
+						   break; /* optional */
+						case 3 :
+						   if (lvlraise <= 0) lvlraise = 0;
+						   else
+								lvlraise--;
+						   break; /* optional */
+						case 0 :
+						   lives--;
+						   if (lives < 0) lives = 0;
+						   break; /* optional */
+					}
+				}else if (kHeld & KEY_DRIGHT && !(kHeld & KEY_R)){
+					switch(currpos){
+						case 4  :
+						   jewels++;
+						   if (jewels > 150) jewels = 150;
+						   break; /* optional */
+						case 1 :
+						   if (kHeld & KEY_L){
+							 coins += 1000;
+						   }else{
+							 coins += 100;
+						   }
+						   if (coins > 99999) coins = 99999;
+						   break; /* optional */
+						case 2 :
+						   megas++;
+						   if (megas > 99) megas = 99;
+						   break; /* optional */
+						case 3 :
+						   lvlraise++;
+						   if (lvlraise > 99) lvlraise = 99;
+						   break; /* optional */
+						case 0 :
+						   lives++;
+						   if (lives > 99) lives = 99;
+						   break; /* optional */
+					}
+				}else if (kHeld & KEY_DLEFT && !(kHeld & KEY_R)){
+					switch(currpos){
+						case 4  :
+						   jewels--;
+						   if (jewels < 0) jewels = 0;
+						   break; /* optional */
+						case 1 :
+						   if (kHeld & KEY_L){
+							 coins -= 1000;
+						   }else{
+							 coins -= 100;
+						   }
+						   if (coins < 0 ) coins = 0;
+						   break; /* optional */
+						case 2 :
+						   megas--;
+						   if (megas < 0) megas = 0;
+						   break; /* optional */
+						case 3 :
+						   if (lvlraise <= 0) lvlraise = 0;
+						   else
+								lvlraise--;
+						   break; /* optional */
+						case 0 :
+						   lives--;
+						   if (lives < 0) lives = 0;
+						   break; /* optional */
+					}
+				}else if (kDown & KEY_DUP){
+					currpos--;
+					if (currpos < 0) currpos = 4;
+				}else if (kDown & KEY_DDOWN){
+					currpos++;
+					if (currpos > 4) currpos=0;
+				}else if (kDown & KEY_Y){
+					switch(currpos)
+					{
+						case 4:
+							jewels = 150;
+							break;
+						case 1:
+							coins = 99999;
+							break;
+						case 2:
+							megas = 99;
+							break;
+						case 3:
+							lvlraise = 99;
+							break;
+						case 0:
+							lives = 99;
+							break;
+					}
+					
+				}else if (kDown & KEY_B){
+					
+				}else if (kDown & KEY_A){
+					
 				}
-			}else if (kDown & KEY_DLEFT && kHeld & KEY_R){
-				switch(currpos){
-					case 0  :
-					   jewels--;
-					   if (jewels < 0) jewels = 0;
-					   break; /* optional */
-					case 1 :
-    				   coins --;
-					   if (coins < 0 ) coins = 0;
-					   break; /* optional */
-					case 2 :
-					   megas--;
-					   if (megas < 0) megas = 0;
-					   break; /* optional */
-					case 3 :
-					   lives--;
-					   if (lives < 0) lives = 0;
-					   break; /* optional */
+			}else if (menu == 1)
+			{
+				if (kDown & KEY_DRIGHT && kHeld & KEY_R){
+					battle[currpos]++;
+					if (battle[currpos] > 99) battle[currpos] = 99;
+				}else if (kDown & KEY_DLEFT && kHeld & KEY_R){
+					if (battle[currpos] <= 0) battle[currpos] = 0;
+					else
+						battle[currpos]--;
+				}else if (kHeld & KEY_DRIGHT && !(kHeld & KEY_R)){
+					battle[currpos]++;
+					if (battle[currpos] > 99) battle[currpos] = 99;
+				}else if (kHeld & KEY_DLEFT && !(kHeld & KEY_R)){
+					if (battle[currpos] <= 0) battle[currpos] = 0;
+					else
+						battle[currpos]--;
+				}else if (kDown & KEY_DUP){
+					currpos--;
+					if (currpos < 0) currpos = 6;
+				}else if (kDown & KEY_DDOWN){
+					currpos++;
+					if (currpos > 6) currpos=0;
+				}else if (kDown & KEY_Y){
+					battle[currpos] = 99;
+				}else if (kDown & KEY_B){
+					
+				}else if (kDown & KEY_A){
+					
 				}
-			}else if (kHeld & KEY_DRIGHT && !(kHeld & KEY_R)){
-				switch(currpos){
-					case 0  :
-					   jewels++;
-					   if (jewels > 150) jewels = 150;
-					   break; /* optional */
-					case 1 :
-					   if (kHeld & KEY_L){
-						 coins += 1000;
-					   }else{
-						 coins += 100;
-					   }
-					   if (coins > 99999) coins = 99999;
-					   break; /* optional */
-					case 2 :
-					   megas++;
-					   if (megas > 99) megas = 99;
-					   break; /* optional */
-					case 3 :
-					   lives++;
-					   if (lives > 99) lives = 99;
-					   break; /* optional */
+			}else if (menu == 2)
+			{
+				if (kDown & KEY_DRIGHT && kHeld & KEY_R){
+					items[currpos]++;
+					if (items[currpos] > 99) items[currpos] = 99;
+				}else if (kDown & KEY_DLEFT && kHeld & KEY_R){
+					if (items[currpos] <= 0) items[currpos] = 0;
+					else
+						items[currpos]--;
+				}else if (kHeld & KEY_DRIGHT && !(kHeld & KEY_R)){
+					items[currpos]++;
+					if (items[currpos] > 99) items[currpos] = 99;
+				}else if (kHeld & KEY_DLEFT && !(kHeld & KEY_R)){
+					if (items[currpos] <= 0) items[currpos] = 0;
+					else
+						items[currpos]--;
+				}else if (kDown & KEY_DUP){
+					currpos--;
+					if (currpos < 0) currpos = 7;
+				}else if (kDown & KEY_DDOWN){
+					currpos++;
+					if (currpos > 7) currpos=0;
+				}else if (kDown & KEY_Y){
+					items[currpos] = 99;
+				}else if (kDown & KEY_B){
+					
+				}else if (kDown & KEY_A){
+					
 				}
-			}else if (kHeld & KEY_DLEFT && !(kHeld & KEY_R)){
-				switch(currpos){
-					case 0  :
-					   jewels--;
-					   if (jewels < 0) jewels = 0;
-					   break; /* optional */
-					case 1 :
-					   if (kHeld & KEY_L){
-						 coins -= 1000;
-					   }else{
-						 coins -= 100;
-					   }
-					   if (coins < 0 ) coins = 0;
-					   break; /* optional */
-					case 2 :
-					   megas--;
-					   if (megas < 0) megas = 0;
-					   break; /* optional */
-					case 3 :
-					   lives--;
-					   if (lives < 0) lives = 0;
-					   break; /* optional */
-				}
-			}else if (kDown & KEY_DUP){
-				currpos--;
-				if (currpos < 0) currpos = 3;
-			}else if (kDown & KEY_DDOWN){
-				currpos++;
-				if (currpos > 3) currpos=0;
-			}else if (kDown & KEY_X){
-				jewels = 150;
-			}else if (kDown & KEY_Y){
-				coins = 99999;
-			}else if (kDown & KEY_B){
-				megas = 99;
-			}else if (kDown & KEY_A){
-				lives = 99;
 			}
 
 			//printf("\x1b[3;0H"); //Move the cursor to the fourth row because on the third one we'll write the circle pad position
