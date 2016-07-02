@@ -56,7 +56,7 @@
 2D52: Skill Booster S
 2D53: Skill Booster M
 2D54: Skill Booster L
-2D55: Unknown Enhancement
+2D55: Skill Swapper
 */
 #define BAT_ADD		0xd0
 /*
@@ -67,6 +67,9 @@ complexity
 DD
 attackup
 */
+
+//Current Scalation Battle level (value is << 2 bits)
+#define SCAL_ADD	0x2D59
 
 u64 size;
 u8* buffer = NULL;
@@ -104,6 +107,8 @@ int main(int argc, char **argv)
 	u8 lvlraise = 0;
 	u8 battle[7];
 	u8 items[8];
+	
+	u16 scalation;
 
 	//Matrix containing the name of each key. Useful for printing when a key is pressed
 /*	char keysNames[32][32] = {
@@ -202,6 +207,10 @@ int main(int argc, char **argv)
 		memcpy(items+i, buffer+ITEM_ADD+1+i, 1);
 		items[i]=items[i]>>1;
 	}
+	
+	//Current scalation level
+	memcpy(&scalation, buffer+SCAL_ADD, 2);
+	scalation = scalation >> 2;
 
 	// Main loop
 	while (aptMainLoop())
@@ -288,6 +297,13 @@ int main(int argc, char **argv)
 					temp = items[i]|temp; //Merge values
 					memcpy(buffer+ITEM_ADD+1+i, &temp, 1);//Add to buffer
 				}
+			
+			//Scalation level
+					memcpy(&temp, buffer+SCAL_ADD, 2);
+					temp = temp & 0x3; //get bit 0 and 1 status
+					scalation = scalation<<2; //shift scalation level
+					temp = scalation|temp; //Merge values
+					memcpy(buffer+SCAL_ADD, &temp, 2);//Add to buffer
 
 			// Write Save savegame
 				res = writeBytesToSaveFile("/savedata.bin", 0, buffer, size);
@@ -312,8 +328,10 @@ int main(int argc, char **argv)
 				printf("\x1b[4;5HStocked lives:    %2d", lives);
 				printf("\x1b[5;5HCoins:         %5d", coins);
 				printf("\x1b[6;5HMegaSpeedups:     %2d", megas);
-				printf("\x1b[7;5HMax 1 level:      %2d", lvlraise);
-				printf("\x1b[8;5HJewels:          %3d", jewels);				
+				printf("\x1b[7;5HRaise Max Levels:      %2d", lvlraise);
+				printf("\x1b[8;5HJewels:          %3d", jewels);
+				
+				printf("\x1b[10;5HCurrent Scalation level:        %2d", scalation);
 
 			}else if (menu == 1)
 			{
@@ -338,7 +356,7 @@ int main(int argc, char **argv)
 				printf("\x1b[8;5HSkill Booster S:  %2d", items[4]);
 				printf("\x1b[9;5HSkill Booster M:  %2d", items[5]);
 				printf("\x1b[10;5HSkill Booster L:  %2d", items[6]);
-				printf("\x1b[11;5HUnknown:          %2d", items[7]);
+				printf("\x1b[11;5HSkill Swapper:          %2d", items[7]);
 			}
 			
 				if (currpos == 0){printf("\x1b[4;0H-->\x1b[5;0H   \x1b[6;0H   \x1b[7;0H   \x1b[8;0H   \x1b[9;0H   \x1b[10;0H   \x1b[11;0H   ");}
@@ -346,7 +364,8 @@ int main(int argc, char **argv)
 				if (currpos == 2){ printf("\x1b[6;0H-->\x1b[4;0H   \x1b[5;0H   \x1b[7;0H   \x1b[8;0H   \x1b[9;0H   \x1b[10;0H   \x1b[11;0H   ");}
 				if (currpos == 3){ printf("\x1b[7;0H-->\x1b[4;0H   \x1b[5;0H   \x1b[6;0H   \x1b[8;0H   \x1b[9;0H   \x1b[10;0H   \x1b[11;0H   ");}
 				if (currpos == 4){ printf("\x1b[8;0H-->\x1b[4;0H   \x1b[5;0H   \x1b[6;0H   \x1b[7;0H   \x1b[9;0H   \x1b[10;0H   \x1b[11;0H   ");}
-				if (currpos == 5){ printf("\x1b[9;0H-->\x1b[4;0H   \x1b[5;0H   \x1b[6;0H   \x1b[7;0H   \x1b[8;0H   \x1b[10;0H   \x1b[11;0H   ");}
+				if (currpos == 5 && menu > 0){ printf("\x1b[9;0H-->\x1b[4;0H   \x1b[5;0H   \x1b[6;0H   \x1b[7;0H   \x1b[8;0H   \x1b[10;0H   \x1b[11;0H   ");}
+				if (currpos == 5 && menu == 0){ printf("\x1b[10;0H-->\x1b[4;0H   \x1b[5;0H   \x1b[6;0H   \x1b[7;0H   \x1b[8;0H   \x1b[9;0H   \x1b[11;0H   ");}
 				if (currpos == 6){ printf("\x1b[10;0H-->\x1b[4;0H   \x1b[5;0H   \x1b[6;0H   \x1b[7;0H   \x1b[8;0H   \x1b[9;0H   \x1b[11;0H   ");}
 				if (currpos == 7){ printf("\x1b[11;0H-->\x1b[4;0H   \x1b[5;0H   \x1b[6;0H   \x1b[7;0H   \x1b[8;0H   \x1b[9;0H   \x1b[10;0H   ");}
 			
@@ -379,6 +398,10 @@ int main(int argc, char **argv)
 			{
 				if (kDown & KEY_DRIGHT && kHeld & KEY_R){
 					switch(currpos){
+						case 5  :
+						   scalation++;
+						   if (scalation > 999) scalation = 999;
+						   break; /* optional */
 						case 4  :
 						   jewels++;
 						   if (jewels > 150) jewels = 150;
@@ -402,6 +425,10 @@ int main(int argc, char **argv)
 					}
 				}else if (kDown & KEY_DLEFT && kHeld & KEY_R){
 					switch(currpos){
+						case 5  :
+						   scalation--;
+						   if (scalation < 1) scalation = 1;
+						   break; /* optional */
 						case 4  :
 						   jewels--;
 						   if (jewels < 0) jewels = 0;
@@ -426,6 +453,10 @@ int main(int argc, char **argv)
 					}
 				}else if (kHeld & KEY_DRIGHT && !(kHeld & KEY_R)){
 					switch(currpos){
+						case 5  :
+						   scalation++;
+						   if (scalation > 999) scalation = 999;
+						   break; /* optional */
 						case 4  :
 						   jewels++;
 						   if (jewels > 150) jewels = 150;
@@ -453,6 +484,10 @@ int main(int argc, char **argv)
 					}
 				}else if (kHeld & KEY_DLEFT && !(kHeld & KEY_R)){
 					switch(currpos){
+						case 5  :
+						   scalation--;
+						   if (scalation < 1) scalation = 1;
+						   break; /* optional */
 						case 4  :
 						   jewels--;
 						   if (jewels < 0) jewels = 0;
@@ -481,13 +516,16 @@ int main(int argc, char **argv)
 					}
 				}else if (kDown & KEY_DUP){
 					currpos--;
-					if (currpos < 0) currpos = 4;
+					if (currpos < 0) currpos = 5;
 				}else if (kDown & KEY_DDOWN){
 					currpos++;
-					if (currpos > 4) currpos=0;
+					if (currpos > 5) currpos=0;
 				}else if (kDown & KEY_Y){
 					switch(currpos)
 					{
+						case 5:
+							jewels = 999;
+							break;
 						case 4:
 							jewels = 150;
 							break;
