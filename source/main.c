@@ -134,7 +134,7 @@ int main(int argc, char **argv)
 	consoleInit(GFX_TOP, NULL);
 
 
-	printf("\x1b[0;0HPokemon Shuffle Editor 0.3 by suloku");
+	printf("\x1b[0;0HPokemon Shuffle Editor 0.4 by suloku");
 
 	//u32 kDownOld = 0, kHeldOld = 0, kUpOld = 0; //In these variables there will be information about keys detected in the previous frame
 
@@ -319,19 +319,19 @@ int main(int argc, char **argv)
 		{
 			//Clear console
 			//consoleClear();
-			printf("\x1b[0;0HPokemon Shuffle Editor 0.3 by suloku");
+			printf("\x1b[0;0HPokemon Shuffle Editor 0.4 by suloku");
 
 			if (!menu)
 			{
 				printf("\x1b[2;0HGeneral Items:");
 
-				printf("\x1b[4;5HStocked lives:    %2d", lives);
-				printf("\x1b[5;5HCoins:         %5d", coins);
-				printf("\x1b[6;5HMegaSpeedups:     %2d", megas);
-				printf("\x1b[7;5HRaise Max Levels:      %2d", lvlraise);
-				printf("\x1b[8;5HJewels:          %3d", jewels);
+				printf("\x1b[4;5HStocked lives:       %2d", lives);
+				printf("\x1b[5;5HCoins:            %5d", coins);
+				printf("\x1b[6;5HMegaSpeedups:        %2d", megas);
+				printf("\x1b[7;5HRaise Max Levels:    %2d", lvlraise);
+				printf("\x1b[8;5HJewels:             %3d", jewels);
 				
-				printf("\x1b[10;5HCurrent Scalation level:        %2d", scalation);
+				printf("\x1b[10;5HCurrent Scalation level: %3d", scalation);
 
 			}else if (menu == 1)
 			{
@@ -356,7 +356,7 @@ int main(int argc, char **argv)
 				printf("\x1b[8;5HSkill Booster S:  %2d", items[4]);
 				printf("\x1b[9;5HSkill Booster M:  %2d", items[5]);
 				printf("\x1b[10;5HSkill Booster L:  %2d", items[6]);
-				printf("\x1b[11;5HSkill Swapper:          %2d", items[7]);
+				printf("\x1b[11;5HSkill Swapper:    %2d", items[7]);
 			}
 			
 				if (currpos == 0){printf("\x1b[4;0H-->\x1b[5;0H   \x1b[6;0H   \x1b[7;0H   \x1b[8;0H   \x1b[9;0H   \x1b[10;0H   \x1b[11;0H   ");}
@@ -524,7 +524,7 @@ int main(int argc, char **argv)
 					switch(currpos)
 					{
 						case 5:
-							jewels = 999;
+							scalation = 999;
 							break;
 						case 4:
 							jewels = 150;
