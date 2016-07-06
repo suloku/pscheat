@@ -134,7 +134,7 @@ int main(int argc, char **argv)
 	consoleInit(GFX_TOP, NULL);
 
 
-	printf("\x1b[0;0HPokemon Shuffle Editor 0.4 by suloku");
+	printf("\x1b[0;0HPokemon Shuffle Editor 0.4a by suloku");
 
 	//u32 kDownOld = 0, kHeldOld = 0, kUpOld = 0; //In these variables there will be information about keys detected in the previous frame
 
@@ -236,6 +236,21 @@ int main(int argc, char **argv)
 			break; // break in order to return to hbmenu
 		}
 		if (kDown & KEY_SELECT){
+		
+			//Sanity checks
+				if (jewels > 150) jewels = 150;
+				if (coins > 99999) coins = 99999;
+				if (megas > 99) megas = 99;
+				if (lvlraise > 99) lvlraise = 99;
+				if (lives > 99) lives = 99;
+				if (scalation > 999) scalation = 999;
+
+				for (i=0;i<7;i++){
+					if (battle[i] > 99) battle[i] = 99;
+				}
+				for (i=0;i<8;i++){
+					if (items[i] > 99) items[i] = 99;
+				}
 			//Change values
 				//Change values for jewels and coins
 				lvMsbuff = lvMsbuff & LIVEMASK;
@@ -319,7 +334,7 @@ int main(int argc, char **argv)
 		{
 			//Clear console
 			//consoleClear();
-			printf("\x1b[0;0HPokemon Shuffle Editor 0.4 by suloku");
+			printf("\x1b[0;0HPokemon Shuffle Editor 0.4a by suloku");
 
 			if (!menu)
 			{
